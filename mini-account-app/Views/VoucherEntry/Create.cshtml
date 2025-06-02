@@ -1,0 +1,85 @@
+﻿@model mini_account_app.Models.VoucherEntry
+
+@{
+    ViewData["Title"] = "Create";
+}
+
+<h1>Create</h1>
+
+<h4>VoucherEntry</h4>
+<hr />
+<div class="row">
+    <form asp-action="Create">
+        <div class="col-md-4">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="form-group">
+                <label asp-for="VoucherNo" class="control-label"></label>
+                <input asp-for="VoucherNo" class="form-control" readonly/>
+                <span asp-validation-for="VoucherNo" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="VoucherType" class="control-label"></label>
+                <select asp-for="VoucherType" class="form-control" asp-items="ViewBag.lstVoucherType"></select>
+            </div>
+
+            @*<div class="form-group">
+                    <label asp-for="VoucherType" class="control-label"></label>
+                    <input asp-for="VoucherType" class="form-control" />
+                    <span asp-validation-for="VoucherType" class="text-danger"></span>
+                </div>*@
+            <div class="form-group">
+                <label asp-for="VoucherDate" class="control-label"></label>
+                <input asp-for="VoucherDate" class="form-control" />
+                <span asp-validation-for="VoucherDate" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="ReferenceNo" class="control-label"></label>
+                <input asp-for="ReferenceNo" class="form-control" />
+                <span asp-validation-for="ReferenceNo" class="text-danger"></span>
+            </div>
+
+
+        </div>
+
+        <div class="py-3">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="border p-1 text-center">Account</th>
+                        <th class="border p-1 text-center">Debit</th>
+                        <th class="border p-1 text-center">Credit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < Model.lstVoucherEntryDetails?.Count; i++)
+                    {
+                        <tr>
+                            <td class="border p-1 text-center">
+                                <select asp-for="@Model.lstVoucherEntryDetails[i].AccountTypeId" class="form-control" asp-items="ViewBag.lstAccount"></select>
+                            </td>
+                            <td class="border p-1 text-center" style="background-color: lightyellow">
+                                <input type="text" asp-for="@Model.lstVoucherEntryDetails[i].Debit" class="border-0 text-center" style="background-color: lightyellow; outline: none" />
+                            </td>
+                            <td class="border p-1 text-center" style="background-color: lightyellow">
+                                <input type="text" asp-for="@Model.lstVoucherEntryDetails[i].Credit" class="border-0 text-center " style="background-color: lightyellow; outline:none" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+
+        <div class="form-group mt-4">
+            <input type="submit" value="Create" class="btn btn-primary" />
+        </div>
+    </form>
+</div>
+
+<div>
+    <a asp-action="Index">Back to List</a>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

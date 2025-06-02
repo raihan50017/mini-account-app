@@ -1,0 +1,67 @@
+﻿@model IEnumerable<mini_account_app.Models.ChartOfAccount>
+
+@{
+    ViewData["Title"] = "Chart of Accounts";
+    var groupedData = Model.GroupBy(x => x.AccountType).ToList();
+}
+
+<h1>Chart of Accounts</h1>
+
+<p>
+    <a asp-action="Create">Create New</a>
+</p>
+
+<ul class="tree-view">
+    @foreach (var group in groupedData)
+    {
+        var groupId = group.Key.Replace(" ", "_").ToLower(); // safe ID
+        <li>
+            <span class="toggle" data-target="@groupId">[+]</span>
+            <strong>@group.Key</strong>
+            <ul class="child-list @groupId" style="display: none; margin-left: 20px;">
+                @foreach (var item in group)
+                {
+                    <li>
+                        @item.AccountName -
+                        <a asp-action="Edit" asp-route-id="@item.Id">Edit</a> |
+                        <a asp-action="Details" asp-route-id="@item.Id">Details</a> |
+                        <a asp-action="Delete" asp-route-id="@item.Id">Delete</a>
+                    </li>
+                }
+            </ul>
+        </li>
+    }
+</ul>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(function () {
+            $('.toggle').click(function () {
+                var targetClass = $(this).data('target');
+                var targetList = $('.' + targetClass);
+                targetList.toggle();
+
+                // Toggle symbol
+                $(this).text(targetList.is(':visible') ? '[-]' : '[+]');
+            });
+        });
+    </script>
+}
+
+<style>
+    .tree-view {
+        list-style-type: none;
+        padding-left: 0;
+    }
+
+        .tree-view li {
+            margin-bottom: 5px;
+        }
+
+    .toggle {
+        cursor: pointer;
+        color: blue;
+        margin-right: 5px;
+    }
+</style>
