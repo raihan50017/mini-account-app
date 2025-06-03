@@ -1,10 +1,13 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Update;
 using mini_account_app.Data;
 using mini_account_app.Models;
 using mini_account_app.Service.VoucherEntry;
+using System.Data;
 
 namespace mini_account_app.Controllers
 {
@@ -77,13 +80,44 @@ namespace mini_account_app.Controllers
         {
             if (ModelState.IsValid)
             {
+
                 var nextVoucher = await _voucherEntryService.NextVoucherNumber();
                 voucherEntry.VoucherSerial = nextVoucher.serial;
                 voucherEntry.VoucherNo = nextVoucher.voucherNo;
 
-                _context.Add(voucherEntry);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                int newId;
+
+                var parameters = new[]
+                {
+                    new SqlParameter("@VoucherNo", voucherEntry.VoucherNo),
+                    new SqlParameter("@VoucherSerial", voucherEntry.VoucherSerial),
+                    new SqlParameter("@VoucherType", voucherEntry.VoucherType),
+                    new SqlParameter("@VoucherDate", voucherEntry.VoucherDate),
+                    new SqlParameter("@ReferenceNo", (object?)voucherEntry.ReferenceNo ?? DBNull.Value),
+                    new SqlParameter
+                    {
+                        ParameterName = "@NewId",
+                        SqlDbType = SqlDbType.Int,
+                        Direction = ParameterDirection.Output
+                    }
+                };
+
+                await _context.Database.ExecuteSqlRawAsync("EXEC sp_InsertVoucherEntry @VoucherNo, @VoucherSerial, @VoucherType, @VoucherDate, @ReferenceNo, @NewId OUT", parameters);
+
+                newId = (int)parameters[5].Value;
+
+                foreach (var detail in voucherEntry.lstVoucherEntryDetails!)
+                {
+                    var detailParams = new[]
+                    {
+                        new SqlParameter("@MasterId", newId),
+                        new SqlParameter("@AccountTypeId", detail.AccountTypeId),
+                        new SqlParameter("@Debit", detail.Debit),
+                        new SqlParameter("@Credit", detail.Credit)
+                    };
+
+                    await _context.Database.ExecuteSqlRawAsync("EXEC sp_InsertVoucherEntryDetail @MasterId, @AccountTypeId, @Debit, @Credit", detailParams);
+                }
             }
             return View(voucherEntry);
         }
@@ -130,39 +164,38 @@ namespace mini_account_app.Controllers
             {
                 try
                 {
-                    var entity = await _context
-                        .VoucherEntry
-                        .Include(_ => _.lstVoucherEntryDetails)
-                        .FirstOrDefaultAsync(_ => _.Id == id);
-
-                    if (entity == null)
+                    var updateParams = new[]
                     {
-                        return NotFound();
+                        new SqlParameter("@Id", id),
+                        new SqlParameter("@VoucherType", voucherEntry.VoucherType!),
+                                        new SqlParameter("@VoucherDate", voucherEntry.VoucherDate),
+                        new SqlParameter("@ReferenceNo", (object?)voucherEntry.ReferenceNo ?? DBNull.Value)
+                    };
+
+                    await _context.Database.ExecuteSqlRawAsync("EXEC sp_UpdateVoucherEntry @Id, @VoucherType, @VoucherDate, @ReferenceNo", updateParams);
+
+                    var deleteParams = new[]
+                    {
+                            new SqlParameter("@MasterId", id)
+                    };
+
+                    await _context.Database.ExecuteSqlRawAsync("EXEC sp_DeleteVoucherEntryDetailsByMasterId @MasterId", deleteParams);
+
+                    if (voucherEntry.lstVoucherEntryDetails != null)
+                    {
+                        foreach (var detail in voucherEntry.lstVoucherEntryDetails)
+                        {
+                            var detailParams = new[]
+                            {
+                                new SqlParameter("@MasterId", id),
+                                new SqlParameter("@AccountTypeId", detail.AccountTypeId),
+                                new SqlParameter("@Debit", detail.Debit),
+                                new SqlParameter("@Credit", detail.Credit)
+                            };
+
+                            await _context.Database.ExecuteSqlRawAsync("EXEC sp_InsertVoucherEntryDetail @MasterId, @AccountTypeId, @Debit, @Credit", detailParams);
+                        }
                     }
-
-                    entity.VoucherType = voucherEntry.VoucherType;
-                    entity.VoucherDate = voucherEntry.VoucherDate;
-                    entity.ReferenceNo = voucherEntry.ReferenceNo;
-                    entity.lstVoucherEntryDetails = new List<VoucherEntryDetails>();
-
-                    voucherEntry?.lstVoucherEntryDetails?.ForEach(_ =>
-                    entity.lstVoucherEntryDetails.Add(new VoucherEntryDetails()
-                    {
-                        AccountTypeId = _.AccountTypeId,
-                        Debit = _.Debit,
-                        Credit = _.Credit
-                    }));
-
-
-                    //delete details
-                    _context.VoucherEntryDetails.RemoveRange(
-                        _context.VoucherEntryDetails.Where(_=>_.MasterId==id)
-                        );
-                    //end-delete details
-
-
-                    _context.Update(entity);
-                    await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -203,13 +236,10 @@ namespace mini_account_app.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var voucherEntry = await _context.VoucherEntry.FindAsync(id);
-            if (voucherEntry != null)
-            {
-                _context.VoucherEntry.Remove(voucherEntry);
-            }
+            var idParam = new SqlParameter("@Id", id);
 
-            await _context.SaveChangesAsync();
+            await _context.Database.ExecuteSqlRawAsync("EXEC sp_DeleteVoucherEntryWithDetails @Id", idParam);
+
             return RedirectToAction(nameof(Index));
         }
 
