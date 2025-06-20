@@ -1,7 +1,5 @@
 #  Account Management System
 
-A basic user account management system built with ASP.NET Core. This project includes functionality for user registration, login, role-based access control, and user role assignment.
-
 ##  Project Setup
 
 Follow these steps to set up and run the project on your local machine.
